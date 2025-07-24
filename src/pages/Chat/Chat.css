@@ -1,0 +1,53 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.chat {
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background: linear-gradient(#596AFF, #383699);
+  display: grid;
+  place-items: center;
+}
+
+.chat-container {
+  width: 100vw;
+  height: 100vh;
+  background-color: aliceblue;
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  overflow: hidden;
+}
+
+/* Ensure child panels stretch fully */
+.chat-container > * {
+  height: 100%;
+  overflow-y: auto;
+}
+
+.loading {
+  font-size: 50px;
+  color: white;
+}
+
+/* Responsive layout for mobile screens */
+@media (max-width: 900px) {
+  .chat-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  .chat-container > * {
+    height: auto;
+    flex: 1;
+  }
+
+  .loading {
+    font-size: 30px;
+  }
+}
