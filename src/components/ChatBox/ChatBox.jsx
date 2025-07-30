@@ -20,9 +20,15 @@ const ChatBox = () => {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const scrollEnd = useRef();
   const emojiPickerRef = useRef();
+  const helpMenuRef = useRef();
 
   const sendMessage = async () => {
     try {
+      if (!chatUser || !chatUser.rId) {
+        toast.error("No chat user selected.");
+        return;
+      }
+
       if (input && messagesId) {
         await updateDoc(doc(db, "messages", messagesId), {
           messages: arrayUnion({
@@ -39,12 +45,12 @@ const ChatBox = () => {
           if (userChatsSnapshot.exists()) {
             const userChatsData = userChatsSnapshot.data();
             const chatIndex = userChatsData.chatsData.findIndex((c) => c.messageId === messagesId);
-            userChatsData.chatsData[chatIndex].lastMessage = input;
-            userChatsData.chatsData[chatIndex].updatedAt = Date.now();
-            if (userChatsData.chatsData[chatIndex].rId === userData.id) {
-              userChatsData.chatsData[chatIndex].messageSeen = false;
+            if (chatIndex !== -1) {
+              userChatsData.chatsData[chatIndex].lastMessage = input;
+              userChatsData.chatsData[chatIndex].updatedAt = Date.now();
+             
+              await updateDoc(userChatsRef, { chatsData: userChatsData.chatsData });
             }
-            await updateDoc(userChatsRef, { chatsData: userChatsData.chatsData });
           }
         });
       }
@@ -67,7 +73,7 @@ const ChatBox = () => {
 
   const sendImage = async (e) => {
     const fileUrl = await upload(e.target.files[0]);
-    if (fileUrl && messagesId) {
+    if (fileUrl && messagesId && chatUser?.rId) {
       await updateDoc(doc(db, "messages", messagesId), {
         messages: arrayUnion({
           sId: userData.id,
@@ -83,9 +89,11 @@ const ChatBox = () => {
         if (userChatsSnapshot.exists()) {
           const userChatsData = userChatsSnapshot.data();
           const chatIndex = userChatsData.chatsData.findIndex((c) => c.messageId === messagesId);
-          userChatsData.chatsData[chatIndex].lastMessage = "Image";
-          userChatsData.chatsData[chatIndex].updatedAt = Date.now();
-          await updateDoc(userChatsRef, { chatsData: userChatsData.chatsData });
+          if (chatIndex !== -1) {
+            userChatsData.chatsData[chatIndex].lastMessage = "Image";
+            userChatsData.chatsData[chatIndex].updatedAt = Date.now();
+            await updateDoc(userChatsRef, { chatsData: userChatsData.chatsData });
+          }
         }
       });
     }
@@ -99,7 +107,7 @@ const ChatBox = () => {
       setBackground(reader.result);
     };
     reader.readAsDataURL(file);
-    setShowHelpMenu(false); // ✅ Close help menu
+    setShowHelpMenu(false);
   };
 
   const onEmojiClick = (emojiData) => {
@@ -119,22 +127,21 @@ const ChatBox = () => {
     }
   }, [messagesId]);
 
-  // ✅ Close emoji picker if clicked outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target)) {
         setShowEmojiPicker(false);
       }
+      if (helpMenuRef.current && !helpMenuRef.current.contains(e.target)) {
+        setShowHelpMenu(false);
+      }
     };
 
-    if (showEmojiPicker) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showEmojiPicker]);
+
 
   return chatUser ? (
     <div
@@ -142,26 +149,29 @@ const ChatBox = () => {
       style={{ backgroundImage: background ? `url(${background})` : "none" }}
     >
       <div className="chat-user">
-        <img src={chatUser?.userData.avatar || assets.profile_img} alt="" />
-        <p>
-          {chatUser.userData.name}
-          {Date.now() - chatUser.userData.lastSeen <= 70000 && (
+       <img
+  src={chatUser?.userData?.avatar || assets.profile_img}
+  alt=""
+  style={{ cursor: 'default' }}
+/>
+
+        <p style={{ cursor: 'default' }}>
+          {chatUser?.userData?.name}
+          {Date.now() - chatUser?.userData?.lastSeen <= 70000 && (
             <img className="dot" src={assets.green_dot} alt="" />
           )}
         </p>
+
         <img onClick={() => setChatVisible(false)} className="arrow" src={assets.arrow_icon} alt="" />
 
-        {/* Help Menu */}
-        <div className="menu-container">
+        <div className="menu-container" ref={helpMenuRef}>
           <img className="help" src={assets.help_icon} alt="" onClick={() => setShowHelpMenu(prev => !prev)} />
           {showHelpMenu && (
             <div className="menu-dropdown">
-              <p
-                onClick={() => {
-                  setTheme(theme === "light" ? "dark" : "light");
-                  setShowHelpMenu(false); // ✅ Close menu
-                }}
-              >
+              <p onClick={() => {
+                setTheme(theme === "light" ? "dark" : "light");
+                setShowHelpMenu(false);
+              }}>
                 Switch to {theme === "light" ? "Dark" : "Light"} Theme
               </p>
               <label style={{ cursor: "pointer" }}>
@@ -175,17 +185,35 @@ const ChatBox = () => {
 
       <div className="chat-msg">
         <div ref={scrollEnd}></div>
-        {messages.map((msg, index) => (
-          <div key={index} className={msg.sId === userData.id ? "s-msg" : "r-msg"}>
-            {msg.image
-              ? <img className="msg-img" src={msg.image} alt="" />
-              : <p className="msg">{msg.text}</p>}
-            <div>
-              <img src={msg.sId === userData.id ? userData.avatar : chatUser.userData.avatar} alt="" />
-              <p>{convertTimestamp(msg.createdAt)}</p>
-            </div>
-          </div>
-        ))}
+       {messages.map((msg, index) => {
+  const isLastMessage = index === messages.length - 1;
+  const isSentByUser = msg.sId === userData.id;
+
+  return (
+    <div key={index} className={isSentByUser ? "s-msg" : "r-msg"}>
+      {msg.image ? (
+        <img className="msg-img" src={msg.image} alt="" />
+      ) : (
+        <p className="msg">{msg.text}</p>
+      )}
+      <div>
+        <img
+          src={
+            isSentByUser
+              ? userData?.avatar || assets.profile_img
+              : chatUser?.userData?.avatar || assets.profile_img
+          }
+          alt=""
+        />
+        <p>{convertTimestamp(msg.createdAt)}</p>
+
+      
+       
+      </div>
+    </div>
+  );
+})}
+
       </div>
 
       <div className="chat-input">

@@ -19,13 +19,26 @@
   background-color: aliceblue;
   display: grid;
   grid-template-columns: 1fr 2fr 1fr;
-  overflow: hidden;
+  gap: 0; /* ✅ Ensure no white space between columns */
 }
 
 /* Ensure child panels stretch fully */
 .chat-container > * {
   height: 100%;
+  width: 100%;
   overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.left-sidebar,
+.chat-box,
+.right-sidebar {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 .loading {

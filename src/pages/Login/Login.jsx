@@ -1,14 +1,21 @@
-import React, { useState } from 'react'
-import './Login.css'
+import React, { useState } from 'react';
+import './Login.css';
 import assets from '../../assets/assets';
 import { signup, login, resetPass } from '../../config/firebase';
+import { useLocation } from 'react-router-dom'; // ✅ Import useLocation
 
 const Login = () => {
-  const [currState, setCurrState] = useState("Sign up");
+  const location = useLocation();
+
+  // ✅ If redirected from reset, show Login form
+  const [currState, setCurrState] = useState(
+    location.state?.fromReset ? "Login" : "Sign up"
+  );
+
   const [userName, setUserName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [agree, setAgree] = useState(false); // NEW
+  const [agree, setAgree] = useState(false);
 
   const onSubmitHandler = (event) => {
     event.preventDefault();
@@ -21,25 +28,25 @@ const Login = () => {
     } else {
       login(email, password);
     }
-  }
+  };
 
   return (
     <div className='login'>
       <img className='logo' src={assets.logo_big} alt="" />
       <form onSubmit={onSubmitHandler} className='login-form'>
         <h2>{currState}</h2>
+
         {currState === "Sign up" && (
-          <>
-            <input
-              onChange={(e) => setUserName(e.target.value)}
-              value={userName}
-              className='form-input'
-              type="text"
-              placeholder='username'
-              required
-            />
-          </>
+          <input
+            onChange={(e) => setUserName(e.target.value)}
+            value={userName}
+            className='form-input'
+            type="text"
+            placeholder='Username'
+            required
+          />
         )}
+
         <input
           onChange={(e) => setEmail(e.target.value)}
           value={email}
@@ -53,7 +60,7 @@ const Login = () => {
           value={password}
           className='form-input'
           type="password"
-          placeholder='password'
+          placeholder='Password'
           required
         />
 
@@ -67,7 +74,9 @@ const Login = () => {
               onChange={(e) => setAgree(e.target.checked)}
               required
             />
-            <label htmlFor="terms">Agree to the terms of use & privacy policy.</label>
+            <label htmlFor="terms">
+              Agree to the terms of use & privacy policy.
+            </label>
           </div>
         )}
 
@@ -78,15 +87,18 @@ const Login = () => {
         <div className='login-forgot'>
           {currState === "Sign up" ? (
             <p className='login-toggle'>
-              Already have an account? <span onClick={() => setCurrState("Login")}>Login here</span>
+              Already have an account?{" "}
+              <span onClick={() => setCurrState("Login")}>Login here</span>
             </p>
           ) : (
             <>
               <p className='login-toggle'>
-                Create an account <span onClick={() => setCurrState("Sign up")}>Click here</span>
+                Create an account{" "}
+                <span onClick={() => setCurrState("Sign up")}>Click here</span>
               </p>
               <p className='login-toggle'>
-                Forgot Password? <span onClick={() => resetPass(email)}>Click here</span>
+                Forgot Password?{" "}
+                <span onClick={() => resetPass(email)}>Click here</span>
               </p>
             </>
           )}

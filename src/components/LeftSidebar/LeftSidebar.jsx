@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import './LeftSidebar.css';
 import assets from '../../assets/assets';
 import { AppContext } from '../../context/AppContext';
@@ -10,11 +10,9 @@ import {
   doc,
   getDoc,
   getDocs,
-  query,
-  serverTimestamp,
-  setDoc,
   updateDoc,
-  where
+  setDoc,
+  serverTimestamp
 } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 
@@ -27,7 +25,9 @@ const LeftSidebar = () => {
   const [user, setUser] = useState(null);
   const [showSearch, setShowSearch] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef(null);
   const navigate = useNavigate();
+  const [searchInput, setSearchInput] = useState("");
 
   const inputHandler = async (e) => {
     try {
@@ -105,6 +105,7 @@ const LeftSidebar = () => {
       });
       setShowSearch(false);
       setUser(null);
+      setSearchInput(""); // Clear search bar
       setChatVisible(true);
     } catch (error) {
       toast.error(error.message);
@@ -114,17 +115,39 @@ const LeftSidebar = () => {
   const setChat = async (item) => {
     setMessagesId(item.messageId);
     setChatUser(item);
-    const userChatsRef = doc(db, "chats", userData.id);
-    const userChatsSnapshot = await getDoc(userChatsRef);
-    const userChatsData = userChatsSnapshot.data();
-    const chatIndex = userChatsData.chatsData.findIndex((c) => c.messageId === item.messageId);
-    userChatsData.chatsData[chatIndex].messageSeen = true;
-    await updateDoc(userChatsRef, {
-      chatsData: userChatsData.chatsData,
-    });
     setChatVisible(true);
+
+    try {
+      const userChatsRef = doc(db, "chats", userData.id);
+      const userChatsSnapshot = await getDoc(userChatsRef);
+      const userChatsData = userChatsSnapshot.data();
+      const chatIndex = userChatsData.chatsData.findIndex((c) => c.messageId === item.messageId);
+
+      if (chatIndex !== -1 && !userChatsData.chatsData[chatIndex].messageSeen) {
+        userChatsData.chatsData[chatIndex].messageSeen = true;
+
+        await updateDoc(userChatsRef, {
+          chatsData: userChatsData.chatsData,
+        });
+      }
+    } catch (error) {
+      console.error("Error updating seen status:", error);
+    }
   };
 
+  // 👇 Handle click outside menu to close it
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // 👇 Update chat user data when chatData changes
   useEffect(() => {
     const updateChatUserData = async () => {
       if (chatUser) {
@@ -142,10 +165,10 @@ const LeftSidebar = () => {
       <div className='ls-top'>
         <div className='ls-nav'>
           <img className='logo' src={assets.logo} alt="" />
-          <div className="menu">
+          <div className="menu" ref={menuRef}>
             <img
               src={assets.menu_icon}
-              alt=""
+              alt="menu"
               onClick={() => setShowMenu((prev) => !prev)}
               style={{ cursor: "pointer" }}
             />
@@ -155,11 +178,6 @@ const LeftSidebar = () => {
                   setShowMenu(false);
                   navigate('/profile');
                 }}>Edit Profile</p>
-                <hr />
-                <p onClick={() => {
-                  setShowMenu(false);
-                  logout();
-                }}>Logout</p>
               </div>
             )}
           </div>
@@ -167,7 +185,16 @@ const LeftSidebar = () => {
 
         <div className="ls-search">
           <img src={assets.search_icon} alt="" />
-          <input onChange={inputHandler} type="text" placeholder='Search here..' />
+         <input
+  type="text"
+  value={searchInput}
+  onChange={(e) => {
+    setSearchInput(e.target.value);
+    inputHandler(e); // Still trigger your search logic
+  }}
+  placeholder='Search here..'
+/>
+
         </div>
       </div>
 
@@ -186,7 +213,7 @@ const LeftSidebar = () => {
             <div
               onClick={() => setChat(item)}
               key={index}
-              className={`friends ${item.messageSeen || item.messageId === messagesId ? "" : "border"}`}
+              className={`friends ${!item.messageSeen ? "unseen" : ""}`}
             >
               <img src={item.userData.avatar} alt="" />
               <div>
@@ -196,6 +223,25 @@ const LeftSidebar = () => {
             </div>
           ))
         )}
+      </div>
+
+      {/* ✅ Logout button at bottom */}
+      <div style={{
+        display: "flex",
+        justifyContent: "center",
+        padding: "15px 0"
+      }}>
+        <button onClick={logout} style={{
+          padding: "10px 25px",
+          backgroundColor: "#077EFF",
+          color: "#fff",
+          border: "none",
+          borderRadius: "20px",
+          fontSize: "14px",
+          cursor: "pointer"
+        }}>
+          Logout
+        </button>
       </div>
     </div>
   );

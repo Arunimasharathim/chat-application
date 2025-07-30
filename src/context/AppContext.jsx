@@ -1,22 +1,32 @@
-import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
+// src/context/AppContext.jsx
 import { createContext, useEffect, useState } from "react";
 import { auth, db } from "../config/firebase";
+import {
+  doc,
+  getDoc,
+  onSnapshot,
+  updateDoc,
+  collection,
+  getDocs,
+} from "firebase/firestore";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 
 export const AppContext = createContext();
 
-const AppContextProvider = (props) => {
+const AppContextProvider = ({ children }) => {
   const [userData, setUserData] = useState(null);
-  const [chatData, setChatData] = useState(null);
+  const [chatData, setChatData] = useState([]);
   const [messagesId, setMessagesId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [chatUser, setChatUser] = useState(null);
   const [chatVisible, setChatVisible] = useState(false);
-
+  const [rightSidebarVisible, setRightSidebarVisible] = useState(true);
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
-  const [background, setBackground] = useState(localStorage.getItem("background") || "");
+  const [background, setBackground] = useState(
+    localStorage.getItem("background") || ""
+  );
 
   const navigate = useNavigate();
 
@@ -28,26 +38,33 @@ const AppContextProvider = (props) => {
     localStorage.setItem("background", background);
   }, [background]);
 
-  // ✅ Function to reset chat-related state
   const resetChatState = () => {
     setMessages([]);
     setMessagesId(null);
     setChatUser(null);
-    setChatData(null);
     setChatVisible(false);
+    setRightSidebarVisible(true);
   };
 
-  // ✅ Load user data and clear previous session state
-  const loadUserData = async (uid) => {
+  const loadUserData = async (uid, retryCount = 3) => {
     try {
       resetChatState();
-
       const userRef = doc(db, "users", uid);
       const userSnap = await getDoc(userRef);
-      const userData = userSnap.data();
-      setUserData(userData);
 
-      if (userData.avatar && userData.name) {
+      if (!userSnap.exists()) {
+        if (retryCount > 0) {
+          setTimeout(() => loadUserData(uid, retryCount - 1), 500);
+        } else {
+          toast.error("User data not found");
+        }
+        return;
+      }
+
+      const uData = userSnap.data();
+      setUserData(uData);
+
+      if (uData.avatar && uData.name) {
         navigate("/chat");
       } else {
         navigate("/profile");
@@ -60,12 +77,11 @@ const AppContextProvider = (props) => {
           await updateDoc(userRef, { lastSeen: Date.now() });
         }
       }, 60000);
-    } catch (error) {
-      toast.error(error.message);
+    } catch (err) {
+      toast.error(err.message);
     }
   };
 
-  // ✅ Track Firebase auth state and reset when user changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -73,71 +89,58 @@ const AppContextProvider = (props) => {
       } else {
         setUserData(null);
         resetChatState();
-        navigate('/');
+        navigate("/");
       }
     });
 
     return () => unsubscribe();
   }, []);
 
-  // 🔁 Real-time chat updates
+  // 🔄 Chat sync
   useEffect(() => {
     if (userData) {
       const chatRef = doc(db, "chats", userData.id);
-      const unSub = onSnapshot(chatRef, async (res) => {
-        const chatItems = res.data()?.chatsData || [];
-        const tempData = [];
+      const unSub = onSnapshot(chatRef, async (snapshot) => {
+        const data = snapshot.data();
+        const chatItems = data?.chatsData || [];
+        const enriched = [];
+
         for (const item of chatItems) {
-          const userRef = doc(db, "users", item.rId);
-          const userSnap = await getDoc(userRef);
-          const userData = userSnap.data();
-          tempData.push({ ...item, userData });
+          const uSnap = await getDoc(doc(db, "users", item.rId));
+          enriched.push({ ...item, userData: uSnap.data() });
         }
-        setChatData(tempData.sort((a, b) => b.updatedAt - a.updatedAt));
+
+        enriched.sort((a, b) => b.updatedAt - a.updatedAt);
+        setChatData(enriched);
       });
 
       return () => unSub();
     }
   }, [userData]);
 
-  // 🔁 Periodic refresh as backup
-  useEffect(() => {
-    if (userData) {
-      const interval = setInterval(async () => {
-        const chatRef = doc(db, "chats", userData.id);
-        const data = await getDoc(chatRef);
-        const chatItems = data.data()?.chatsData || [];
-        const tempData = [];
-        for (const item of chatItems) {
-          const userRef = doc(db, "users", item.rId);
-          const userSnap = await getDoc(userRef);
-          const userData = userSnap.data();
-          tempData.push({ ...item, userData });
-        }
-        setChatData(tempData.sort((a, b) => b.updatedAt - a.updatedAt));
-      }, 10000);
-
-      return () => clearInterval(interval);
-    }
-  }, [userData]);
-
   const value = {
-    userData, setUserData,
-    loadUserData,
+    userData,
+    setUserData,
     chatData,
-    messagesId, setMessagesId,
-    chatUser, setChatUser,
-    chatVisible, setChatVisible,
-    messages, setMessages,
-    theme, setTheme,
-    background, setBackground
+    setChatData,
+    messagesId,
+    setMessagesId,
+    messages,
+    setMessages,
+    chatUser,
+    setChatUser,
+    chatVisible,
+    setChatVisible,
+    theme,
+    setTheme,
+    background,
+    setBackground,
+    rightSidebarVisible,
+    setRightSidebarVisible,
+    loadUserData,
   };
 
-  return (
-    <AppContext.Provider value={value}>
-      {props.children}
-    </AppContext.Provider>
-  );
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
 export default AppContextProvider;

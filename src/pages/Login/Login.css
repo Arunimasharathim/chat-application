@@ -8,7 +8,7 @@
 }
 
 .login .logo {
-  width: max(20vw, 200px);
+  width: max(40vw, 400px);
 }
 
 .login-form {
@@ -28,12 +28,12 @@
   padding: 8px 10px;
   border: 1px solid #C9C9C9;
   border-radius: 4px;
-  outline-color: #077EFF;
+  outline-color: #113b97;
 }
 
 .login-form button {
   padding: 10px;
-  background-color: #077EFF;
+  background-color: #3386d4;
   color: white;
   font-size: 16px;
   border: none;
@@ -66,7 +66,7 @@
 
 .login-toggle span {
   font-weight: 500;
-  color: #077EFF;
+  color: #4b40e0;
   cursor: pointer;
 }
 

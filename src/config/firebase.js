@@ -1,43 +1,47 @@
-import {
-  initializeApp
-} from "firebase/app";
+import { initializeApp } from "firebase/app";
 import {
   getAuth,
   createUserWithEmailAndPassword,
-  sendPasswordResetEmail,
   sendEmailVerification,
   signInWithEmailAndPassword,
-  signOut
-} from 'firebase/auth';
+  signOut,
+  sendPasswordResetEmail
+} from "firebase/auth";
+
 import {
+  getFirestore,
   collection,
   doc,
   getDocs,
-  getFirestore,
   query,
   setDoc,
   where
-} from 'firebase/firestore';
+} from "firebase/firestore";
+
 import { toast } from "react-toastify";
 
+// ✅ Your Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyBounTTpSO8FxSrKV6YKLlTja3SvwFL8ao",
   authDomain: "chat-app-74077.firebaseapp.com",
   projectId: "chat-app-74077",
-  storageBucket: "chat-app-74077.appspot.com",
+  storageBucket: "chat-app-74077.firebasestorage.app",
   messagingSenderId: "776660767529",
   appId: "1:776660767529:web:4243ea29c28e1f70875d38"
 };
 
+// ✅ Initialize Firebase services
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// ✅ Signup function with email verification
 const signup = async (username, email, password) => {
   try {
     const usersRef = collection(db, 'users');
     const q = query(usersRef, where("username", "==", username.toLowerCase()));
     const querySnapshot = await getDocs(q);
+
     if (!querySnapshot.empty) {
       toast.error("Username already taken");
       return;
@@ -60,14 +64,16 @@ const signup = async (username, email, password) => {
     });
 
     await setDoc(doc(db, "chats", user.uid), { chatsData: [] });
-    signOut(auth); // Force signout until they verify
 
+    // Force sign out after signup until verified
+    await signOut(auth);
   } catch (error) {
     console.error(error);
     toast.error(error.code.split('/')[1].split('-').join(" "));
   }
 };
 
+// ✅ Login function with email verification check
 const login = async (email, password) => {
   try {
     const res = await signInWithEmailAndPassword(auth, email, password);
@@ -82,28 +88,25 @@ const login = async (email, password) => {
   }
 };
 
+// ✅ Logout function
 const logout = () => {
   signOut(auth);
 };
 
+// ✅ Reset password using Firebase-hosted page
 const resetPass = async (email) => {
   if (!email) {
     toast.error("Enter your email");
-    return null;
+    return;
   }
+
   try {
-    const userRef = collection(db, "users");
-    const q = query(userRef, where("email", "==", email));
-    const querySnap = await getDocs(q);
-    if (!querySnap.empty) {
-      await sendPasswordResetEmail(auth, email);
-      toast.success("Reset Email Sent");
-    } else {
-      toast.error("Email doesn't exist");
-    }
+    await sendPasswordResetEmail(auth, email);
+    toast.success("Password reset email sent. Check your inbox.");
   } catch (error) {
     toast.error(error.message);
   }
 };
 
-export { auth, db, login, signup, logout, resetPass };
+// ✅ Export Firebase services and functions
+export { auth, db, signup, login, logout, resetPass };

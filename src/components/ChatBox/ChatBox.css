@@ -1,5 +1,6 @@
 .chat-box {
   height: 100%;
+  width: 100%;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -7,6 +8,8 @@
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+  padding: 0;
+  margin: 0;
 }
 
 /* Themes */
@@ -88,7 +91,7 @@
   align-items: center;
   flex: 1 1 70%;
   gap: 8px;
-  background-color: #f0f0f0;
+  background-color: #ebe2ec;
   padding: 8px 12px;
   border-radius: 20px;
 }
@@ -134,7 +137,7 @@
 
 .msg {
   color: white;
-  background-color: #077EFF;
+  background-color: #770671;
   padding: 8px 10px;
   max-width: 70%;
   font-size: 12px;
@@ -144,7 +147,7 @@
 }
 
 .s-msg .msg {
-  background-color: #3A36FF;
+  background-color: #770671;
 }
 
 .r-msg .msg {
@@ -237,4 +240,9 @@
   .chat-user .help {
     display: none;
   }
+}
+.seen-text {
+  font-size: 11px;
+  color: #888;
+  margin-left: 5px;
 }
